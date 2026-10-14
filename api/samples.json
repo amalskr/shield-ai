@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Sinhala OTP theft",
+    "expect": "SCAM",
+    "text": "ආයුබෝවන්, මම වැරදීමකින් ඔබේ අංකයට OTP එකක් යැව්වා. කරුණාකර ඒ අංක 6 මට එවන්න, හදිසියි."
+  },
+  {
+    "name": "English parcel fee phishing",
+    "expect": "SCAM",
+    "text": "SL Post: Your parcel is held at customs. Pay Rs. 350 clearance fee within 24h or it will be returned: http://slpost-delivery.top/pay"
+  },
+  {
+    "name": "Singlish job task scam",
+    "expect": "SCAM",
+    "text": "Part time job ekak thiyenawa, YouTube videos like karala dawasakata Rs 5000 hoyanna puluwan. Telegram ekata join wenna: t.me/easyjobs_lk"
+  },
+  {
+    "name": "Tamil bank PIN request",
+    "expect": "SCAM",
+    "text": "உங்கள் வங்கி கணக்கு முடக்கப்பட்டுள்ளது. உடனே உங்கள் PIN மற்றும் OTP ஐ அனுப்பவும்."
+  },
+  {
+    "name": "Tanglish bank OTP scam",
+    "expect": "SCAM",
+    "text": "Unga bank account block aagiduchu. Ippo OTP and PIN anuppunga, illana account close pannuvom."
+  },
+  {
+    "name": "Safe family message",
+    "expect": "SAFE",
+    "text": "අම්මේ, මම හවස 6ට විතර ගෙදර එනවා. කෑම මොනවා හරි ගේන්නද?"
+  },
+  {
+    "name": "Web Risk official test URL",
+    "expect": "SCAM",
+    "text": "Your account is locked. Verify here: http://testsafebrowsing.appspot.com/s/phishing.html"
+  }
+]

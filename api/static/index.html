@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shield-AI: is this message a scam?</title>
+<meta name="description" content="Paste any SMS, WhatsApp or email message. Shield-AI checks it with Google Web Risk and Gemini and explains it in Sinhala, Tamil or English.">
+<meta name="theme-color" content="#0E2350">
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="apple-touch-icon" href="/static/logo-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Sinhala:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --paper: #F4F7FD;
+  --surface: #FFFFFF;
+  --ink: #0E2350;
+  --muted: #56648A;
+  --line: #D6DFEF;
+  --signal: #1F5BE0;
+  --signal-ink: #FFFFFF;
+  --safe: #12805A;
+  --warn: #A86300;
+  --scam: #C42B33;
+  --mark-bg: #FCE1E3;
+  --bubble: #E9EFFB;
+  --verdict: var(--signal);
+  --display: "Bricolage Grotesque", "Noto Sans Sinhala", "Noto Sans Tamil", system-ui, sans-serif;
+  --body: "Noto Sans", "Noto Sans Sinhala", "Noto Sans Tamil", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: #0A1330;
+    --surface: #111C3E;
+    --ink: #E7EDFB;
+    --muted: #9DABCD;
+    --line: #253463;
+    --signal: #5B8CFF;
+    --signal-ink: #06102B;
+    --safe: #3CC98F;
+    --warn: #F0AE45;
+    --scam: #FF6B72;
+    --mark-bg: rgba(255, 107, 114, .24);
+    --bubble: #1A2853;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 17px/1.6 var(--body);
+  padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+}
+.wrap { max-width: 680px; margin: 0 auto; padding: 20px 20px 56px; }
+
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+.brand img { width: 40px; height: 40px; border-radius: 10px; }
+.brand span { font: 800 22px/1 var(--display); letter-spacing: -.01em; }
+.langs { display: flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--surface); }
+.langs button {
+  border: 0; background: transparent; color: var(--muted); font: 600 14px/1 var(--body);
+  padding: 8px 12px; border-radius: 999px; cursor: pointer;
+}
+.langs button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+h1 { font: 800 clamp(34px, 7vw, 52px)/1.05 var(--display); letter-spacing: -.02em; margin: 40px 0 12px; }
+:lang(si) h1, :lang(ta) h1 { line-height: 1.25; letter-spacing: 0; }
+.lede { color: var(--muted); margin: 0 0 28px; max-width: 60ch; }
+
+/* The message bubble is the one bold element: input, then the marked-up result. */
+.bubble {
+  scroll-margin-top: 16px;
+  position: relative; background: var(--bubble); border-radius: 22px 22px 22px 6px;
+  padding: 18px 20px; overflow: hidden;
+}
+.bubble textarea {
+  width: 100%; min-height: 150px; border: 0; background: transparent; color: var(--ink);
+  font: 400 18px/1.6 var(--body); resize: vertical; outline: none;
+}
+.bubble textarea::placeholder { color: var(--muted); }
+.bubble:focus-within { box-shadow: 0 0 0 3px var(--signal); }
+.bubble .msg { white-space: pre-wrap; word-break: break-word; font-size: 18px; }
+mark {
+  background: var(--mark-bg); color: inherit; border-bottom: 2px solid var(--scam);
+  padding: 0 2px; border-radius: 3px;
+}
+.scan::after {
+  content: ""; position: absolute; left: 0; right: 0; top: -40%; height: 40%;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--signal) 22%, transparent), transparent);
+  animation: scan 1.4s ease-in-out infinite;
+}
+@keyframes scan { to { top: 100%; } }
+
+.tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 14px 0 0; }
+.chip {
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  font: 600 14px/1 var(--body); padding: 9px 14px; border-radius: 999px; cursor: pointer;
+}
+.chip:hover { border-color: var(--signal); }
+.examples { margin-top: 18px; }
+.examples p { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 24px; }
+label.sel { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 15px; }
+select {
+  font: 600 15px/1 var(--body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+.primary {
+  margin-left: auto; border: 0; background: var(--signal); color: var(--signal-ink);
+  font: 700 17px/1 var(--body); padding: 16px 26px; border-radius: 14px; cursor: pointer; min-width: 190px;
+}
+.primary:disabled { opacity: .6; cursor: progress; }
+button:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid var(--signal); outline-offset: 2px; }
+
+.status { min-height: 24px; margin: 14px 0 0; color: var(--muted); font-size: 15px; }
+.status.error { color: var(--scam); font-weight: 600; }
+
+/* When a result is showing, the marked-up bubble sits directly above the verdict. */
+main.has-result .tools, main.has-result .examples, main.has-result .row { display: none; }
+main.has-result #result { margin-top: 22px; }
+main.has-result .bubble { cursor: pointer; }
+
+/* Result */
+#result[hidden] { display: none; }
+#result { margin-top: 36px; }
+#result[data-verdict="SAFE"] { --verdict: var(--safe); }
+#result[data-verdict="SUSPICIOUS"] { --verdict: var(--warn); }
+#result[data-verdict="SCAM"] { --verdict: var(--scam); }
+.verdict { border-left: 6px solid var(--verdict); padding: 4px 0 4px 18px; margin-bottom: 22px; }
+.verdict h2 { font: 800 clamp(32px, 6.5vw, 46px)/1.1 var(--display); color: var(--verdict); margin: 0 0 12px; }
+.meter { display: flex; align-items: center; gap: 12px; }
+.meter .track { flex: 1; height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; max-width: 320px; }
+.meter .fill { height: 100%; width: 0; background: var(--verdict); border-radius: 99px; transition: width .7s cubic-bezier(.2,.8,.2,1); }
+.meter strong { font: 700 16px/1 var(--body); font-variant-numeric: tabular-nums; }
+.meter span { color: var(--muted); font-size: 15px; }
+
+section.part { margin-top: 28px; }
+section.part h3 { font: 700 19px/1.3 var(--display); margin: 0 0 8px; }
+section.part p { margin: 0; max-width: 62ch; }
+ul.dots { margin: 0; padding-left: 1.2em; list-style: disc; }
+ul.dots li { margin: 6px 0; padding-left: 2px; }
+.links { list-style: none; padding: 0; margin: 0; }
+.links li { display: flex; gap: 10px; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.links li:first-child { border-top: 0; }
+.links code { font: 500 14px/1.4 ui-monospace, Menlo, monospace; word-break: break-all; }
+.tag { font-size: 13px; font-weight: 700; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
+.tag.bad { background: var(--scam); color: #fff; }
+.tag.ok { background: var(--line); color: var(--muted); }
+
+.after { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 30px; }
+.secondary {
+  border: 2px solid var(--ink); background: transparent; color: var(--ink);
+  font: 700 16px/1 var(--body); padding: 13px 20px; border-radius: 12px; cursor: pointer;
+}
+.secondary.share { background: var(--ink); color: var(--paper); }
+
+footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+footer p { margin: 4px 0; }
+
+@media (max-width: 520px) {
+  .primary { width: 100%; margin-left: 0; }
+  h1 { margin-top: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scan::after { animation: none; display: none; }
+  .meter .fill { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="/"><img src="/static/logo-192.png" alt=""><span>Shield-AI</span></a>
+    <div class="langs" role="group" aria-label="Language">
+      <button type="button" data-lang="si">සිංහල</button>
+      <button type="button" data-lang="ta">தமிழ்</button>
+      <button type="button" data-lang="en">English</button>
+    </div>
+  </header>
+
+  <main>
+    <h1 data-i18n="title"></h1>
+    <p class="lede" data-i18n="sub"></p>
+
+    <div class="bubble" id="bubble">
+      <textarea id="msg" rows="5" data-i18n-ph="placeholder" aria-labelledby="msg-label"></textarea>
+      <div class="msg" id="msgView" hidden></div>
+    </div>
+    <span id="msg-label" hidden data-i18n="placeholder"></span>
+
+    <div class="tools">
+      <button type="button" class="chip" id="pasteBtn" data-i18n="paste"></button>
+      <button type="button" class="chip" id="clearBtn" data-i18n="clear"></button>
+    </div>
+
+    <div class="examples">
+      <p data-i18n="examples"></p>
+      <div class="tools" id="exampleChips" style="margin:0"></div>
+    </div>
+
+    <div class="row">
+      <label class="sel"><span data-i18n="explain_in"></span>
+        <select id="replyLang">
+          <option value="auto" data-i18n="auto"></option>
+          <option value="si">සිංහල</option>
+          <option value="ta">தமிழ்</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <button type="button" class="primary" id="checkBtn" data-i18n="check"></button>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+
+    <div id="result" hidden aria-live="polite">
+      <div class="verdict">
+        <h2 id="vTitle"></h2>
+        <div class="meter">
+          <span data-i18n="risk"></span>
+          <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="meter"><div class="fill" id="meterFill"></div></div>
+          <strong id="vScore"></strong>
+        </div>
+      </div>
+
+      <section class="part"><h3 data-i18n="why"></h3><p id="vExplain"></p></section>
+      <section class="part" id="flagsPart"><h3 data-i18n="flags"></h3><ul class="dots" id="vFlags"></ul></section>
+      <section class="part" id="linksPart"><h3 data-i18n="links"></h3><ul class="links" id="vLinks"></ul></section>
+      <section class="part" id="actionsPart"><h3 data-i18n="actions"></h3><ul class="dots" id="vActions"></ul></section>
+
+      <div class="after">
+        <button type="button" class="secondary share" id="shareBtn" data-i18n="share"></button>
+        <button type="button" class="secondary" id="againBtn" data-i18n="again"></button>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p data-i18n="privacy"></p>
+    <p data-i18n="footer"></p>
+  </footer>
+</div>
+
+<script>
+const I18N = {
+  en: {
+    title: "Is this message a scam?",
+    sub: "Paste any SMS, WhatsApp or email. Shield-AI checks the links with Google Web Risk, reads the message with Gemini, and explains it in Sinhala, Tamil or English.",
+    placeholder: "Paste the message here",
+    paste: "Paste", clear: "Clear",
+    examples: "Or try an example",
+    ex: ["OTP request", "Parcel fee", "Part time job", "Family message"],
+    explain_in: "Explain in", auto: "Same as message",
+    check: "Check message",
+    checking_links: "Checking links with Google Web Risk",
+    checking_msg: "Reading the message",
+    SAFE: "Looks safe", SUSPICIOUS: "Be careful", SCAM: "This is a scam",
+    risk: "Risk", why: "Why", flags: "Warning signs", links: "Links checked",
+    link_bad: "Flagged by Google Web Risk", link_ok: "Not on Google's blocklist",
+    actions: "What to do now",
+    share: "Share this warning", again: "Check another message",
+    copied: "Copied. Paste it in your family group.",
+    err_empty: "Paste a message first.",
+    err_net: "Shield-AI could not be reached. Check your internet connection and try again.",
+    err_api: "The check did not finish. Try again in a few seconds.",
+    share_head: "Shield-AI check",
+    privacy: "Messages are checked and then discarded. Nothing is stored.",
+    footer: "Built by team Shield-AI for the Google Cloud AI Builder Cup 2026. Runs on Gemini in Vertex AI, the Web Risk API and Cloud Run."
+  },
+  si: {
+    title: "මේ පණිවිඩය වංචාවක්ද?",
+    sub: "ඕනෑම SMS, WhatsApp හෝ email පණිවිඩයක් මෙතනට දාන්න. Shield-AI එකේ links Google Web Risk එකෙන් පරීක්ෂා කරලා, Gemini එකෙන් පණිවිඩය කියවලා, ඔබට තේරෙන භාෂාවෙන් පැහැදිලි කරනවා.",
+    placeholder: "පණිවිඩය මෙතනට paste කරන්න",
+    paste: "Paste කරන්න", clear: "මකන්න",
+    examples: "නැත්නම් උදාහරණයක් බලන්න",
+    ex: ["OTP ඉල්ලීමක්", "Parcel ගාස්තුවක්", "Part time job", "පවුලේ පණිවිඩයක්"],
+    explain_in: "පැහැදිලි කරන භාෂාව", auto: "පණිවිඩයේ භාෂාවෙන්",
+    check: "පරීක්ෂා කරන්න",
+    checking_links: "Google Web Risk එකෙන් links පරීක්ෂා කරනවා",
+    checking_msg: "පණිවිඩය කියවනවා",
+    SAFE: "ආරක්ෂිතයි වගේ", SUSPICIOUS: "පරිස්සම් වෙන්න", SCAM: "මේක වංචාවක්",
+    risk: "අවදානම", why: "ඇයි", flags: "අනතුරු ලකුණු", links: "පරීක්ෂා කළ links",
+    link_bad: "Google Web Risk අනතුරුදායක ලෙස හඳුනාගෙන ඇත", link_ok: "Google blocklist එකේ නැහැ",
+    actions: "දැන් කළ යුතු දේ",
+    share: "මේ අනතුරු ඇඟවීම share කරන්න", again: "වෙනත් පණිවිඩයක් පරීක්ෂා කරන්න",
+    copied: "Copy කළා. පවුලේ group එකට paste කරන්න.",
+    err_empty: "මුලින්ම පණිවිඩයක් දාන්න.",
+    err_net: "Shield-AI එකට සම්බන්ධ වෙන්න බැරි වුණා. Internet එක බලලා ආපහු උත්සාහ කරන්න.",
+    err_api: "පරීක්ෂාව අවසන් වුණේ නැහැ. තත්පර කිහිපයකින් ආපහු උත්සාහ කරන්න.",
+    share_head: "Shield-AI පරීක්ෂාව",
+    privacy: "පණිවිඩ පරීක්ෂා කළාට පස්සේ ඉවත් කරනවා. කිසිවක් ගබඩා කරන්නේ නැහැ.",
+    footer: "Google Cloud AI Builder Cup 2026 සඳහා Shield-AI කණ්ඩායම විසින් නිර්මාණය කළා. Vertex AI හි Gemini, Web Risk API සහ Cloud Run මත ක්‍රියා කරයි."
+  },
+  ta: {
+    title: "இந்தச் செய்தி மோசடியா?",
+    sub: "எந்த SMS, WhatsApp அல்லது email செய்தியையும் இங்கே ஒட்டுங்கள். Shield-AI இணைப்புகளை Google Web Risk மூலம் சரிபார்த்து, Gemini மூலம் செய்தியைப் படித்து, உங்களுக்குப் புரியும் மொழியில் விளக்குகிறது.",
+    placeholder: "செய்தியை இங்கே ஒட்டுங்கள்",
+    paste: "ஒட்டு", clear: "அழி",
+    examples: "அல்லது ஒரு உதாரணத்தை முயற்சிக்கவும்",
+    ex: ["OTP கோரிக்கை", "பார்சல் கட்டணம்", "பகுதி நேர வேலை", "குடும்பச் செய்தி"],
+    explain_in: "விளக்க மொழி", auto: "செய்தியின் மொழியில்",
+    check: "சரிபார்க்கவும்",
+    checking_links: "Google Web Risk மூலம் இணைப்புகளைச் சரிபார்க்கிறது",
+    checking_msg: "செய்தியைப் படிக்கிறது",
+    SAFE: "பாதுகாப்பானதாகத் தெரிகிறது", SUSPICIOUS: "கவனமாக இருங்கள்", SCAM: "இது ஒரு மோசடி",
+    risk: "ஆபத்து", why: "ஏன்", flags: "எச்சரிக்கை அறிகுறிகள்", links: "சரிபார்த்த இணைப்புகள்",
+    link_bad: "Google Web Risk ஆபத்தானது எனக் குறித்துள்ளது", link_ok: "Google தடுப்புப் பட்டியலில் இல்லை",
+    actions: "இப்போது செய்ய வேண்டியவை",
+    share: "இந்த எச்சரிக்கையைப் பகிரவும்", again: "வேறொரு செய்தியைச் சரிபார்க்கவும்",
+    copied: "நகலெடுக்கப்பட்டது. குடும்பக் குழுவில் ஒட்டுங்கள்.",
+    err_empty: "முதலில் ஒரு செய்தியை ஒட்டுங்கள்.",
+    err_net: "Shield-AI உடன் இணைக்க முடியவில்லை. இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.",
+    err_api: "சரிபார்ப்பு முடியவில்லை. சில வினாடிகளில் மீண்டும் முயற்சிக்கவும்.",
+    share_head: "Shield-AI சரிபார்ப்பு",
+    privacy: "செய்திகள் சரிபார்க்கப்பட்ட பின் நீக்கப்படும். எதுவும் சேமிக்கப்படுவதில்லை.",
+    footer: "Google Cloud AI Builder Cup 2026 க்காக Shield-AI குழுவால் உருவாக்கப்பட்டது. Vertex AI இல் Gemini, Web Risk API மற்றும் Cloud Run மூலம் இயங்குகிறது."
+  }
+};
+
+const EXAMPLES = [
+  "ආයුබෝවන්, මම වැරදීමකින් ඔබේ අංකයට OTP එකක් යැව්වා. කරුණාකර ඒ අංක 6 මට එවන්න, හදිසියි.",
+  "SL Post: Your parcel is held at customs. Pay Rs. 350 clearance fee within 24h or it will be returned: http://slpost-delivery.top/pay",
+  "Part time job ekak thiyenawa, YouTube videos like karala dawasakata Rs 5000 hoyanna puluwan. Telegram ekata join wenna: t.me/easyjobs_lk",
+  "අම්මේ, මම හවස 6ට විතර ගෙදර එනවා. කෑම මොනවා හරි ගේන්නද?"
+];
+
+const $ = (id) => document.getElementById(id);
+const msg = $("msg"), msgView = $("msgView"), bubble = $("bubble");
+const statusEl = $("status"), checkBtn = $("checkBtn"), result = $("result");
+let lang = "en";
+let last = null;
+
+function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+function setLang(l) {
+  lang = I18N[l] ? l : "en";
+  document.documentElement.lang = lang;
+  const t = I18N[lang];
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t[el.dataset.i18n]; });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => { el.placeholder = t[el.dataset.i18nPh]; });
+  document.querySelectorAll(".langs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+  const chips = $("exampleChips");
+  chips.innerHTML = "";
+  t.ex.forEach((label, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = label;
+    b.onclick = () => { showInput(); msg.value = EXAMPLES[i]; msg.focus(); };
+    chips.appendChild(b);
+  });
+  if (last) render(last.data, last.text);
+  store("shieldai.lang", lang);
+}
+
+function setStatus(text, isError) {
+  statusEl.textContent = text || "";
+  statusEl.classList.toggle("error", !!isError);
+}
+
+function showInput() {
+  msgView.hidden = true; msg.hidden = false; result.hidden = true; last = null;
+  document.querySelector("main").classList.remove("has-result");
+  bubble.classList.remove("scan");
+}
+
+function esc(s) {
+  return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* Find the parts of the original message that the red flags quote, and mark them. */
+function highlight(text, flags) {
+  const lower = text.toLowerCase();
+  const ranges = [];
+  const candidates = [];
+  (flags || []).forEach(f => {
+    const quoted = [...f.matchAll(/["“”‘’']([^"“”‘’']{4,})["“”‘’']/g)].map(m => m[1]);
+    (quoted.length ? quoted : [f.replace(/\s*\([^)]*\)\s*$/, "")]).forEach(q => candidates.push(q.trim().replace(/[.,;:!?]+$/, "")));
+  });
+  candidates.forEach(c => {
+    if (c.length < 4) return;
+    const i = lower.indexOf(c.toLowerCase());
+    if (i >= 0) ranges.push([i, i + c.length]);
+  });
+  ranges.sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  ranges.forEach(r => {
+    const prev = merged[merged.length - 1];
+    if (prev && r[0] <= prev[1]) prev[1] = Math.max(prev[1], r[1]); else merged.push(r.slice());
+  });
+  let out = "", pos = 0;
+  merged.forEach(([a, b]) => { out += esc(text.slice(pos, a)) + "<mark>" + esc(text.slice(a, b)) + "</mark>"; pos = b; });
+  return out + esc(text.slice(pos));
+}
+
+function fillList(el, items) {
+  el.innerHTML = "";
+  (items || []).forEach(x => { const li = document.createElement("li"); li.textContent = x; el.appendChild(li); });
+  el.closest("section").hidden = !(items && items.length);
+}
+
+function render(d, text) {
+  const t = I18N[lang];
+  result.dataset.verdict = d.verdict;
+  $("vTitle").textContent = t[d.verdict] || d.verdict;
+  $("vScore").textContent = d.risk_score + "/100";
+  $("meter").setAttribute("aria-valuenow", d.risk_score);
+  $("meterFill").style.width = "0";
+  requestAnimationFrame(() => requestAnimationFrame(() => { $("meterFill").style.width = d.risk_score + "%"; }));
+  $("vExplain").textContent = d.explanation;
+  fillList($("vFlags"), d.red_flags);
+  fillList($("vActions"), d.recommended_actions);
+
+  const links = $("vLinks");
+  links.innerHTML = "";
+  (d.url_checks || []).forEach(c => {
+    const li = document.createElement("li");
+    const tag = document.createElement("span");
+    tag.className = "tag " + (c.malicious ? "bad" : "ok");
+    tag.textContent = c.malicious ? t.link_bad : t.link_ok;
+    const code = document.createElement("code");
+    code.textContent = c.url;
+    li.append(tag, code);
+    links.appendChild(li);
+  });
+  $("linksPart").hidden = !(d.url_checks && d.url_checks.length);
+
+  msgView.innerHTML = highlight(text, d.red_flags);
+  msgView.hidden = false; msg.hidden = true;
+  result.hidden = false;
+  document.querySelector("main").classList.add("has-result");
+}
+
+async function check() {
+  const text = msg.value.trim();
+  const t = I18N[lang];
+  if (!text) { setStatus(t.err_empty, true); msg.focus(); return; }
+  checkBtn.disabled = true;
+  bubble.classList.add("scan");
+  const hasLink = /https?:\/\/|www\.|\b[a-z0-9-]+\.(lk|com|net|org|xyz|top|click|info|link|ly|co|me|io|app|site|online|shop|cc|gl)\b/i.test(text);
+  setStatus(hasLink ? t.checking_links : t.checking_msg);
+  const step = hasLink ? setTimeout(() => setStatus(I18N[lang].checking_msg), 1200) : null;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 30000);
+  try {
+    const res = await fetch("/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, reply_language: $("replyLang").value }),
+      signal: ctrl.signal
+    });
+    if (!res.ok) throw new Error("api");
+    const data = await res.json();
+    last = { data, text };
+    setStatus("");
+    render(data, text);
+    bubble.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  } catch (e) {
+    setStatus(e.message === "api" ? I18N[lang].err_api : I18N[lang].err_net, true);
+  } finally {
+    clearTimeout(timer); if (step) clearTimeout(step);
+    checkBtn.disabled = false;
+    bubble.classList.remove("scan");
+  }
+}
+
+async function share() {
+  if (!last) return;
+  const t = I18N[lang], d = last.data;
+  const body = [
+    t.share_head + ": " + (t[d.verdict] || d.verdict) + " (" + t.risk + " " + d.risk_score + "/100)",
+    "",
+    d.explanation,
+    "",
+    ...(d.recommended_actions || []).map(a => "• " + a),
+    "",
+    location.origin
+  ].join("\n");
+  if (navigator.share) {
+    try { await navigator.share({ text: body }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(body); setStatus(t.copied); } catch (e) { setStatus(t.err_api, true); }
+}
+
+document.querySelectorAll(".langs button").forEach(b => b.onclick = () => setLang(b.dataset.lang));
+checkBtn.onclick = check;
+$("againBtn").onclick = () => { showInput(); msg.value = ""; setStatus(""); window.scrollTo({ top: 0 }); msg.focus(); };
+$("clearBtn").onclick = () => { showInput(); msg.value = ""; setStatus(""); msg.focus(); };
+$("pasteBtn").onclick = async () => {
+  try { const s = await navigator.clipboard.readText(); showInput(); msg.value = s; } catch (e) { msg.focus(); }
+};
+$("shareBtn").onclick = share;
+msgView.onclick = () => { const t = msg.value; showInput(); msg.value = t; msg.focus(); };
+msg.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") check(); });
+
+setLang(load("shieldai.lang") || "en");
+</script>
+</body>
+</html>
