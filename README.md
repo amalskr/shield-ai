@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <b><a href="https://shield-ai-api-454732198588.asia-southeast1.run.app">Try the live demo</a></b>
+  <b><a href="https://shield-ai-2026.web.app/">Try the live demo</a></b>
 </p>
 
 Built for the **Google Cloud AI Builder Cup 2026** by team Shield-AI.
