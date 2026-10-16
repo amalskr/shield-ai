@@ -22,6 +22,7 @@ from google.genai import errors as genai_errors
 from google.genai import types
 from pydantic import BaseModel, Field
 
+import store
 from prompt import SYSTEM_PROMPT
 
 PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT")
@@ -93,6 +94,8 @@ class AnalyzeResponse(GeminiAssessment):
     url_checks: List[UrlCheck]
     model: str
     latency_ms: int
+    cached: bool = False          # answered from the Firestore scam cache
+    seen_count: int = 1           # how many times this exact scam has been checked
 
 
 # ---------- helpers ----------
@@ -242,18 +245,49 @@ async def analyze(req: AnalyzeRequest):
     if not text:
         raise HTTPException(400, "text is empty")
     t0 = time.perf_counter()
+    key = store.fingerprint(text, req.reply_language)
 
-    url_checks = await asyncio.gather(*(check_url(u) for u in extract_urls(text)))
+    # 1. Viral scam cache (Firestore): instant answer for a scam someone already checked.
+    hit = await store.cache_get(key)
+    if hit:
+        result = hit["result"]
+        await store.radar_record(result["verdict"], result.get("scam_type", ""), result.get("detected_language", ""), cached=True)
+        return AnalyzeResponse(
+            **result,
+            model=hit.get("model", MODEL_ID),
+            latency_ms=int((time.perf_counter() - t0) * 1000),
+            cached=True,
+            seen_count=hit["hits"],
+        )
+
+    # 2. Full check: Web Risk on every link, then Gemini.
+    url_checks = list(await asyncio.gather(*(check_url(u) for u in extract_urls(text))))
     try:
-        assessment = await ask_gemini(text, list(url_checks), req.reply_language)
+        assessment = await ask_gemini(text, url_checks, req.reply_language)
     except Exception as e:
         log.exception("gemini failed")
         raise HTTPException(502, f"model error: {type(e).__name__}: {e}"[:500])
+    assessment = merge(assessment, url_checks)
 
-    assessment = merge(assessment, list(url_checks))
+    result = {**assessment.model_dump(mode="json"), "url_checks": [c.model_dump() for c in url_checks]}
+    writes = [store.radar_record(result["verdict"], result["scam_type"], result["detected_language"], cached=False)]
+    if assessment.verdict == Verdict.SCAM:   # only scams are cached; personal messages are never stored
+        writes.append(store.cache_put(key, result, MODEL_ID))
+    await asyncio.gather(*writes)
+
     return AnalyzeResponse(
-        **assessment.model_dump(),
-        url_checks=list(url_checks),
+        **result,
         model=MODEL_ID,
         latency_ms=int((time.perf_counter() - t0) * 1000),
     )
+
+
+@app.get("/radar")
+async def radar():
+    """Anonymous counts for the last 7 days. No message text is ever stored here."""
+    try:
+        return await store.radar_summary()
+    except Exception:
+        log.exception("radar failed")
+        return {"days": 7, "checked": 0, "scams": 0, "suspicious": 0, "safe": 0,
+                "cache_hits": 0, "languages": {}, "top_categories": []}

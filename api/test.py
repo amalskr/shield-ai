@@ -7,7 +7,7 @@ import urllib.request
 from pathlib import Path
 
 API_URL = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080").rstrip("/")
-KEYS = ["verdict", "risk_score", "scam_type", "detected_language",
+KEYS = ["verdict", "risk_score", "scam_type", "detected_language", "cached", "seen_count",
         "red_flags", "explanation", "url_checks", "latency_ms"]
 
 

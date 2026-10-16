@@ -161,6 +161,29 @@ ul.dots li { margin: 6px 0; padding-left: 2px; }
 }
 .secondary.share { background: var(--ink); color: var(--paper); }
 
+.cachebadge {
+  display: inline-flex; align-items: center; gap: 8px; margin: 14px 0 0; padding: 8px 12px;
+  border-radius: 10px; background: color-mix(in srgb, var(--signal) 12%, transparent);
+  color: var(--ink); font-size: 14px; font-weight: 600;
+}
+.cachebadge[hidden] { display: none; }
+
+/* Scam radar (Firestore) */
+#radar[hidden] { display: none; }
+#radar { margin-top: 56px; padding: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+#radar h2 { font: 800 22px/1.2 var(--display); margin: 0 0 4px; }
+#radar .sub { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.stat strong { display: block; font: 800 30px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 13px; line-height: 1.35; display: block; }
+.stat.scam strong { color: var(--scam); }
+.bars { list-style: none; margin: 0; padding: 0; }
+.bars li { display: grid; grid-template-columns: minmax(110px, 38%) 1fr 36px; gap: 10px; align-items: center; margin: 9px 0; font-size: 15px; }
+.bars .bar { height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.bars .bar i { display: block; height: 100%; background: var(--scam); border-radius: 99px; }
+.bars b { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 520px) { .stat strong { font-size: 24px; } }
+
 footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
 footer p { margin: 4px 0; }
 
@@ -228,6 +251,7 @@ footer p { margin: 4px 0; }
         </div>
       </div>
 
+      <p class="cachebadge" id="cacheBadge" hidden></p>
       <section class="part"><h3 data-i18n="why"></h3><p id="vExplain"></p></section>
       <section class="part" id="flagsPart"><h3 data-i18n="flags"></h3><ul class="dots" id="vFlags"></ul></section>
       <section class="part" id="linksPart"><h3 data-i18n="links"></h3><ul class="links" id="vLinks"></ul></section>
@@ -238,6 +262,16 @@ footer p { margin: 4px 0; }
         <button type="button" class="secondary" id="againBtn" data-i18n="again"></button>
       </div>
     </div>
+    <section id="radar" hidden aria-live="polite">
+      <h2 data-i18n="radar_title"></h2>
+      <p class="sub" data-i18n="radar_sub"></p>
+      <div class="stats">
+        <div class="stat"><strong id="rChecked">0</strong><span data-i18n="radar_checked"></span></div>
+        <div class="stat scam"><strong id="rScams">0</strong><span data-i18n="radar_scams"></span></div>
+        <div class="stat"><strong id="rSaved">0</strong><span data-i18n="radar_saved"></span></div>
+      </div>
+      <ul class="bars" id="rBars"></ul>
+    </section>
   </main>
 
   <footer>
@@ -269,8 +303,13 @@ const I18N = {
     err_net: "Shield-AI could not be reached. Check your internet connection and try again.",
     err_api: "The check did not finish. Try again in a few seconds.",
     share_head: "Shield-AI check",
-    privacy: "Messages are checked and then discarded. Nothing is stored.",
-    footer: "Built by team Shield-AI for the Google Cloud AI Builder Cup 2026. Runs on Gemini in Vertex AI, the Web Risk API and Cloud Run."
+    privacy: "Personal messages are never stored. Only the results for messages judged as scams are cached for 3 days under an anonymous fingerprint, so the next person gets an instant answer.",
+    cached: (n) => `Seen before: this exact scam has been checked ${n} times. Answered instantly from the Shield-AI scam cache.`,
+    radar_title: "Scam radar",
+    radar_sub: "What people checked with Shield-AI in the last 7 days. Anonymous counts only.",
+    radar_checked: "messages checked", radar_scams: "scams caught", radar_saved: "instant answers from the scam cache",
+    cat: { otp_pin: "OTP or PIN theft", money_reversal: "Reload or money reversal", parcel: "Parcel or customs fee", job: "Part time job or task", prize: "Prize or lottery", investment: "Investment or crypto", authority: "Fake police or authority", marketplace: "Marketplace deposit", family_romance: "Family or romance", bank: "Fake bank message", phishing: "Phishing link", other: "Other scams" },
+    footer: "Built by team Shield-AI for the Google Cloud AI Builder Cup 2026. Runs on Gemini in Vertex AI, the Web Risk API, Cloud Run, Firestore and Firebase Hosting."
   },
   si: {
     title: "මේ පණිවිඩය වංචාවක්ද?",
@@ -293,8 +332,13 @@ const I18N = {
     err_net: "Shield-AI එකට සම්බන්ධ වෙන්න බැරි වුණා. Internet එක බලලා ආපහු උත්සාහ කරන්න.",
     err_api: "පරීක්ෂාව අවසන් වුණේ නැහැ. තත්පර කිහිපයකින් ආපහු උත්සාහ කරන්න.",
     share_head: "Shield-AI පරීක්ෂාව",
-    privacy: "පණිවිඩ පරීක්ෂා කළාට පස්සේ ඉවත් කරනවා. කිසිවක් ගබඩා කරන්නේ නැහැ.",
-    footer: "Google Cloud AI Builder Cup 2026 සඳහා Shield-AI කණ්ඩායම විසින් නිර්මාණය කළා. Vertex AI හි Gemini, Web Risk API සහ Cloud Run මත ක්‍රියා කරයි."
+    privacy: "පුද්ගලික පණිවිඩ කවදාවත් ගබඩා කරන්නේ නැහැ. Scam එකක් කියලා හඳුනාගත්ත පණිවිඩවල results විතරක්, ඊළඟ කෙනාට ක්ෂණිකව උත්තරය දෙන්න, නම් නැති fingerprint එකක් යටතේ දින 3කට තියාගන්නවා.",
+    cached: (n) => `මේ scam එකම මීට කලින් ${n} පාරක් පරීක්ෂා කරලා තියෙනවා. Shield-AI scam cache එකෙන් ක්ෂණිකව උත්තරය දුන්නා.`,
+    radar_title: "Scam radar",
+    radar_sub: "පසුගිය දින 7 තුළ Shield-AI එකෙන් පරීක්ෂා කළ දේ. නම් නැති ගණන් විතරයි.",
+    radar_checked: "පරීක්ෂා කළ පණිවිඩ", radar_scams: "අල්ලගත්ත scams", radar_saved: "scam cache එකෙන් ක්ෂණික උත්තර",
+    cat: { otp_pin: "OTP හෝ PIN සොරකම", money_reversal: "Reload හෝ සල්ලි ආපසු ඉල්ලීම", parcel: "Parcel හෝ customs ගාස්තු", job: "Part time job වංචා", prize: "ත්‍යාග හෝ ලොතරැයි", investment: "Investment හෝ crypto", authority: "බොරු පොලිස් හෝ ආයතන", marketplace: "Marketplace deposit", family_romance: "පවුලේ අය හෝ ආදර වංචා", bank: "බොරු බැංකු පණිවිඩ", phishing: "Phishing links", other: "වෙනත් scams" },
+    footer: "Google Cloud AI Builder Cup 2026 සඳහා Shield-AI කණ්ඩායම විසින් නිර්මාණය කළා. Vertex AI හි Gemini, Web Risk API, Cloud Run, Firestore සහ Firebase Hosting මත ක්‍රියා කරයි."
   },
   ta: {
     title: "இந்தச் செய்தி மோசடியா?",
@@ -317,8 +361,13 @@ const I18N = {
     err_net: "Shield-AI உடன் இணைக்க முடியவில்லை. இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.",
     err_api: "சரிபார்ப்பு முடியவில்லை. சில வினாடிகளில் மீண்டும் முயற்சிக்கவும்.",
     share_head: "Shield-AI சரிபார்ப்பு",
-    privacy: "செய்திகள் சரிபார்க்கப்பட்ட பின் நீக்கப்படும். எதுவும் சேமிக்கப்படுவதில்லை.",
-    footer: "Google Cloud AI Builder Cup 2026 க்காக Shield-AI குழுவால் உருவாக்கப்பட்டது. Vertex AI இல் Gemini, Web Risk API மற்றும் Cloud Run மூலம் இயங்குகிறது."
+    privacy: "தனிப்பட்ட செய்திகள் ஒருபோதும் சேமிக்கப்படுவதில்லை. மோசடி என கண்டறியப்பட்ட செய்திகளின் முடிவுகள் மட்டும், அடுத்தவருக்கு உடனடி பதில் தர, பெயரற்ற கைரேகையின் கீழ் 3 நாட்களுக்கு வைக்கப்படும்.",
+    cached: (n) => `இதே மோசடி ஏற்கனவே ${n} முறை சரிபார்க்கப்பட்டுள்ளது. Shield-AI மோசடி cache இலிருந்து உடனடியாக பதில் அளிக்கப்பட்டது.`,
+    radar_title: "Scam radar",
+    radar_sub: "கடந்த 7 நாட்களில் Shield-AI மூலம் சரிபார்க்கப்பட்டவை. பெயரற்ற எண்ணிக்கை மட்டுமே.",
+    radar_checked: "சரிபார்த்த செய்திகள்", radar_scams: "கண்டறிந்த மோசடிகள்", radar_saved: "cache இலிருந்து உடனடி பதில்கள்",
+    cat: { otp_pin: "OTP அல்லது PIN திருட்டு", money_reversal: "Reload அல்லது பணம் திருப்பக் கோரிக்கை", parcel: "பார்சல் அல்லது சுங்கக் கட்டணம்", job: "பகுதி நேர வேலை மோசடி", prize: "பரிசு அல்லது லாட்டரி", investment: "முதலீடு அல்லது crypto", authority: "போலி காவல்துறை அல்லது அதிகாரிகள்", marketplace: "Marketplace முன்பணம்", family_romance: "குடும்பம் அல்லது காதல் மோசடி", bank: "போலி வங்கிச் செய்தி", phishing: "Phishing இணைப்புகள்", other: "பிற மோசடிகள்" },
+    footer: "Google Cloud AI Builder Cup 2026 க்காக Shield-AI குழுவால் உருவாக்கப்பட்டது. Vertex AI இல் Gemini, Web Risk API, Cloud Run, Firestore மற்றும் Firebase Hosting மூலம் இயங்குகிறது."
   }
 };
 
@@ -334,6 +383,41 @@ const msg = $("msg"), msgView = $("msgView"), bubble = $("bubble");
 const statusEl = $("status"), checkBtn = $("checkBtn"), result = $("result");
 let lang = "en";
 let last = null;
+let radarData = null;
+
+function renderRadar(r) {
+  const t = I18N[lang];
+  radarData = r;
+  $("radar").hidden = !r || !r.checked;
+  if (!r || !r.checked) return;
+  $("rChecked").textContent = r.checked.toLocaleString();
+  $("rScams").textContent = r.scams.toLocaleString();
+  $("rSaved").textContent = r.cache_hits.toLocaleString();
+  const max = Math.max(1, ...r.top_categories.map(c => c.count));
+  const ul = $("rBars");
+  ul.innerHTML = "";
+  r.top_categories.forEach(c => {
+    const li = document.createElement("li");
+    const name = document.createElement("span");
+    name.textContent = t.cat[c.category] || t.cat.other;
+    const bar = document.createElement("span");
+    bar.className = "bar";
+    const fill = document.createElement("i");
+    fill.style.width = Math.round(c.count / max * 100) + "%";
+    bar.appendChild(fill);
+    const n = document.createElement("b");
+    n.textContent = c.count;
+    li.append(name, bar, n);
+    ul.appendChild(li);
+  });
+}
+
+async function loadRadar() {
+  try {
+    const res = await fetch("/radar", { cache: "no-store" });
+    if (res.ok) renderRadar(await res.json());
+  } catch (e) {}
+}
 
 function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -354,6 +438,7 @@ function setLang(l) {
     chips.appendChild(b);
   });
   if (last) render(last.data, last.text);
+  if (radarData) renderRadar(radarData);
   store("shieldai.lang", lang);
 }
 
@@ -429,6 +514,10 @@ function render(d, text) {
   });
   $("linksPart").hidden = !(d.url_checks && d.url_checks.length);
 
+  const badge = $("cacheBadge");
+  badge.hidden = !d.cached;
+  if (d.cached) badge.textContent = "⚡ " + t.cached(d.seen_count);
+
   msgView.innerHTML = highlight(text, d.red_flags);
   msgView.hidden = false; msg.hidden = true;
   result.hidden = false;
@@ -458,6 +547,7 @@ async function check() {
     last = { data, text };
     setStatus("");
     render(data, text);
+    setTimeout(loadRadar, 1500);
     bubble.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   } catch (e) {
     setStatus(e.message === "api" ? I18N[lang].err_api : I18N[lang].err_net, true);
@@ -498,6 +588,7 @@ msgView.onclick = () => { const t = msg.value; showInput(); msg.value = t; msg.f
 msg.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") check(); });
 
 setLang(load("shieldai.lang") || "en");
+loadRadar();
 </script>
 </body>
 </html>
