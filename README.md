@@ -78,7 +78,6 @@ Design decisions that matter:
 ```
 api/             FastAPI backend, prompt, Firestore store, web app (static/), tests
 firebase.json    Firebase Hosting config (rewrites to Cloud Run)
-android/    Kotlin and Jetpack Compose Android app
 ```
 
 ## Run the API yourself
